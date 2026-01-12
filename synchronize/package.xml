@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>synchronize</name>
+  <version>1.0.0</version>
+  <description>Real robot to Mujoco simulation synchronization for G1</description>
+  <maintainer email="unitree@unitree.com">unitree</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>unitree_hg</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
