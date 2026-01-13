@@ -1,5 +1,0 @@
-domain_bridge:
-  ros__parameters:
-    from_domain: 0
-    to_domain: 3
-    topic: '/lowstate'

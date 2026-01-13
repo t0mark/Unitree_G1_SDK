@@ -11,6 +11,7 @@ from pathlib import Path
 import rclpy
 from rclpy.node import Node
 from unitree_hg.msg import LowState
+from unitree_go.msg import SportModeState
 
 try:
     import mujoco
@@ -80,6 +81,16 @@ class MujocoSynchronizer(Node):
 
         self.get_logger().info('Subscribed to /lowstate topic')
 
+        # Subscribe to /odommodestate for robot position
+        self.odom_sub = self.create_subscription(
+            SportModeState,
+            '/odommodestate',
+            self.odom_callback,
+            10
+        )
+
+        self.get_logger().info('Subscribed to /odommodestate topic')
+
         # Launch Mujoco viewer in passive mode
         self.viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data)
 
@@ -90,6 +101,29 @@ class MujocoSynchronizer(Node):
         self.viewer_thread.start()
 
         self.get_logger().info('Synchronizer initialized successfully')
+
+    def odom_callback(self, msg: SportModeState):
+        """
+        Callback for /odommodestate topic
+        Updates Mujoco simulation base position from odometry
+        """
+        with self.locker:
+            if not self.mj_model or not self.mj_data:
+                return
+
+            # Update floating base position (first 3 elements of qpos)
+            # SportModeState contains position information
+            self.mj_data.qpos[0] = msg.position[0]  # x position
+            self.mj_data.qpos[1] = msg.position[1]  # y position
+            self.mj_data.qpos[2] = msg.position[2]  # z position
+
+            # Update floating base linear velocity (first 3 elements of qvel)
+            self.mj_data.qvel[0] = msg.velocity[0]  # x velocity
+            self.mj_data.qvel[1] = msg.velocity[1]  # y velocity
+            self.mj_data.qvel[2] = msg.velocity[2]  # z velocity
+
+            # Forward kinematics to update visualization
+            mujoco.mj_forward(self.mj_model, self.mj_data)
 
     def state_callback(self, msg: LowState):
         """
