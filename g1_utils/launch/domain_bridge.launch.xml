@@ -1,7 +1,7 @@
 <launch>
   <arg name="config"
        description="Path to YAML configuration"
-       default="/home/unitree/demo_ws/src/ROS2-foxy-domain-bridge/examples/example_bridge_config.yaml" />
+       default="/home/unitree/demo_ws/src/g1_utils/config/domain_bridge/0to3.yaml" />
   <arg name="from_domain"
        description="Override any 'from_domain' entries in the YAML file"
        default="" />
@@ -20,7 +20,7 @@
        name="to_domain_opt" value="--to" />
 
   <executable name="domain_bridge"
-              cmd="$(exec-in-pkg domain_bridge domain_bridge)
+              cmd="$(exec-in-pkg g1_utils g1_utils)
                    $(var from_domain_opt) $(var from_domain)
                    $(var to_domain_opt) $(var to_domain)
                    $(var config)"

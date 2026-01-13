@@ -1,8 +1,0 @@
-# Domain bridge configured for demo_nodes_cpp talker (domain 123)
-# and demo_nodes_py listener (domain 125).
-name: demo_talker_listener_bridge
-from_domain: 123
-to_domain: 125
-topics:
-  chatter:
-    type: std_msgs/msg/String

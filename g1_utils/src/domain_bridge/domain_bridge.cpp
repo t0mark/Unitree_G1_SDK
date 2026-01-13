@@ -40,7 +40,7 @@
 #include "domain_bridge/domain_bridge_options.hpp"
 #include "domain_bridge/topic_bridge.hpp"
 #include "domain_bridge/topic_bridge_options.hpp"
-#include "domain_bridge/msg/compressed_msg.hpp"
+#include "g1_utils/msg/compressed_msg.hpp"
 #include "domain_bridge/utils.hpp"
 
 #include "generic_publisher.hpp"
@@ -162,7 +162,7 @@ public:
     }
     auto publisher = std::make_shared<GenericPublisher>(
       node->get_node_base_interface().get(),
-      *rosidl_typesupport_cpp::get_message_type_support_handle<domain_bridge::msg::CompressedMsg>(),
+      *rosidl_typesupport_cpp::get_message_type_support_handle<g1_utils::msg::CompressedMsg>(),
       topic_name,
       qos);
     node->get_node_topics_interface()->add_publisher(publisher, std::move(group));
@@ -181,13 +181,13 @@ public:
     switch (options_.mode()) {
       case DomainBridgeOptions::Mode::Compress:
         callback = [
-          serializer = rclcpp::Serialization<domain_bridge::msg::CompressedMsg>{},
+          serializer = rclcpp::Serialization<g1_utils::msg::CompressedMsg>{},
           publisher,
           cctx = cctx_.get()
           ](std::shared_ptr<rclcpp::SerializedMessage> msg)
           {
             // Publish message into the other domain
-            domain_bridge::msg::CompressedMsg compressed_msg;
+            g1_utils::msg::CompressedMsg compressed_msg;
             compressed_msg.data = domain_bridge::compress_message(cctx, std::move(*msg));
             rclcpp::SerializedMessage serialized_compressed_msg;
             serializer.serialize_message(&compressed_msg, &serialized_compressed_msg);
@@ -198,13 +198,13 @@ public:
         break;
       case DomainBridgeOptions::Mode::Decompress:
         callback = [
-          serializer = rclcpp::Serialization<domain_bridge::msg::CompressedMsg>{},
+          serializer = rclcpp::Serialization<g1_utils::msg::CompressedMsg>{},
           publisher,
           dctx = dctx_.get()
           ](std::shared_ptr<rclcpp::SerializedMessage> serialized_compressed_msg)
           {
             // Publish message into the other domain
-            domain_bridge::msg::CompressedMsg compressed_msg;
+            g1_utils::msg::CompressedMsg compressed_msg;
             serializer.deserialize_message(serialized_compressed_msg.get(), &compressed_msg);
             rclcpp::SerializedMessage msg = domain_bridge::decompress_message(
               dctx, std::move(compressed_msg.data));
@@ -236,7 +236,7 @@ public:
     }
     auto subscription = std::make_shared<GenericSubscription>(
       node->get_node_base_interface().get(),
-      *rosidl_typesupport_cpp::get_message_type_support_handle<domain_bridge::msg::CompressedMsg>(),
+      *rosidl_typesupport_cpp::get_message_type_support_handle<g1_utils::msg::CompressedMsg>(),
       topic_name,
       qos,
       callback);

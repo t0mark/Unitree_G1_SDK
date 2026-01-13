@@ -1,0 +1,9 @@
+# Name of the domain bridge, used for node naming and logging
+name: my_bridge
+from_domain: 0
+to_domain: 3
+topics:
+  lowstate:
+    type: unitree_hg/msg/LowState
+  odommodestate:
+    type: unitree_go/msg/SportModeState

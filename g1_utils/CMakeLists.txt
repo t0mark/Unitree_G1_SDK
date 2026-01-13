@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(domain_bridge)
+project(g1_utils)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -34,16 +34,16 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 )
 
 add_library(${PROJECT_NAME}_lib SHARED
-  src/${PROJECT_NAME}/compress_messages.cpp
-  src/${PROJECT_NAME}/domain_bridge.cpp
-  src/${PROJECT_NAME}/domain_bridge_options.cpp
-  src/${PROJECT_NAME}/generic_publisher.cpp
-  src/${PROJECT_NAME}/generic_subscription.cpp
-  src/${PROJECT_NAME}/parse_domain_bridge_yaml_config.cpp
-  src/${PROJECT_NAME}/qos_options.cpp
-  src/${PROJECT_NAME}/service_bridge_options.cpp
-  src/${PROJECT_NAME}/topic_bridge_options.cpp
-  src/${PROJECT_NAME}/utils.cpp
+  src/domain_bridge/compress_messages.cpp
+  src/domain_bridge/domain_bridge.cpp
+  src/domain_bridge/domain_bridge_options.cpp
+  src/domain_bridge/generic_publisher.cpp
+  src/domain_bridge/generic_subscription.cpp
+  src/domain_bridge/parse_domain_bridge_yaml_config.cpp
+  src/domain_bridge/qos_options.cpp
+  src/domain_bridge/service_bridge_options.cpp
+  src/domain_bridge/topic_bridge_options.cpp
+  src/domain_bridge/utils.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
@@ -124,7 +124,7 @@ install(TARGETS ${PROJECT_NAME}_lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY examples launch
+install(DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME}
 )
 
@@ -144,8 +144,6 @@ ament_export_dependencies(
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
-
-  add_subdirectory(test)
 endif()
 
 ament_package()
