@@ -30,7 +30,7 @@ class MujocoSynchronizer(Node):
         # Declare parameters
         self.declare_parameter('robot_model', 'g1')
         self.declare_parameter('scene_file',
-            '/home/unitree/demo_ws/src/synchronize/models/g1/scene.xml')
+            '/home/unitree/demo_ws/src/synchronize/models/g1/scene_empty.xml',)
         self.declare_parameter('viewer_fps', 50.0)
 
         # Get parameters
@@ -125,11 +125,11 @@ class MujocoSynchronizer(Node):
             # Update IMU orientation (quaternion)
             # Mujoco uses [w, x, y, z] format
             if len(msg.imu_state.quaternion) >= 4:
-                # Assuming IMU sends [x, y, z, w]
-                self.mj_data.qpos[3] = msg.imu_state.quaternion[3]  # w
-                self.mj_data.qpos[4] = msg.imu_state.quaternion[0]  # x
-                self.mj_data.qpos[5] = msg.imu_state.quaternion[1]  # y
-                self.mj_data.qpos[6] = msg.imu_state.quaternion[2]  # z
+                # IMU sends [w, x, y, z] format (same as Mujoco)
+                self.mj_data.qpos[3] = msg.imu_state.quaternion[0]  # w
+                self.mj_data.qpos[4] = msg.imu_state.quaternion[1]  # x
+                self.mj_data.qpos[5] = msg.imu_state.quaternion[2]  # y
+                self.mj_data.qpos[6] = msg.imu_state.quaternion[3]  # z
 
             # Forward kinematics to update visualization
             mujoco.mj_forward(self.mj_model, self.mj_data)

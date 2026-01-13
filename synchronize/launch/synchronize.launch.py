@@ -26,7 +26,7 @@ def generate_launch_description():
 
     scene_file_arg = DeclareLaunchArgument(
         'scene_file',
-        default_value='/home/unitree/demo_ws/src/synchronize/models/g1/scene.xml',
+        default_value='/home/unitree/demo_ws/src/synchronize/models/g1/scene_empty.xml',
         description='Path to Mujoco scene XML file'
     )
 
