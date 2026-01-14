@@ -34,10 +34,30 @@ class MujocoSynchronizer(Node):
             '/home/unitree/demo_ws/src/synchronize/models/g1/scene_empty.xml',)
         self.declare_parameter('viewer_fps', 50.0)
 
+        # Camera follow parameters
+        self.declare_parameter('camera_follow', True)
+        self.declare_parameter('camera_distance', 3.0)
+        self.declare_parameter('camera_azimuth', 90.0)
+        self.declare_parameter('camera_elevation', -20.0)
+        self.declare_parameter('camera_lookat_offset_x', 0.0)
+        self.declare_parameter('camera_lookat_offset_y', 0.0)
+        self.declare_parameter('camera_lookat_offset_z', 0.5)
+
         # Get parameters
         self.robot_model = self.get_parameter('robot_model').value
         self.scene_file = self.get_parameter('scene_file').value
         self.viewer_fps = self.get_parameter('viewer_fps').value
+
+        # Camera parameters
+        self.camera_follow = self.get_parameter('camera_follow').value
+        self.camera_distance = self.get_parameter('camera_distance').value
+        self.camera_azimuth = self.get_parameter('camera_azimuth').value
+        self.camera_elevation = self.get_parameter('camera_elevation').value
+        self.camera_lookat_offset = [
+            self.get_parameter('camera_lookat_offset_x').value,
+            self.get_parameter('camera_lookat_offset_y').value,
+            self.get_parameter('camera_lookat_offset_z').value,
+        ]
 
         self.get_logger().info(f'Initializing Mujoco simulation for {self.robot_model}')
         self.get_logger().info(f'Loading scene: {self.scene_file}')
@@ -94,7 +114,13 @@ class MujocoSynchronizer(Node):
         # Launch Mujoco viewer in passive mode
         self.viewer = mujoco.viewer.launch_passive(self.mj_model, self.mj_data)
 
+        # Set initial camera position
+        self.viewer.cam.distance = self.camera_distance
+        self.viewer.cam.azimuth = self.camera_azimuth
+        self.viewer.cam.elevation = self.camera_elevation
+
         self.get_logger().info('Mujoco viewer launched')
+        self.get_logger().info(f'Camera follow: {self.camera_follow}')
 
         # Start viewer thread
         self.viewer_thread = threading.Thread(target=self.viewer_loop, daemon=True)
@@ -194,6 +220,13 @@ class MujocoSynchronizer(Node):
 
             # Sync viewer with simulation data
             with self.locker:
+                # Update camera lookat to follow robot
+                if self.camera_follow:
+                    robot_pos = self.mj_data.qpos[0:3]  # x, y, z
+                    self.viewer.cam.lookat[0] = robot_pos[0] + self.camera_lookat_offset[0]
+                    self.viewer.cam.lookat[1] = robot_pos[1] + self.camera_lookat_offset[1]
+                    self.viewer.cam.lookat[2] = robot_pos[2] + self.camera_lookat_offset[2]
+
                 self.viewer.sync()
 
             # Rate control
