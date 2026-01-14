@@ -45,6 +45,8 @@ class TrackingNode(Node):
         # params
         self.declare_parameter("tracker", "bytetrack.yaml")
         self.declare_parameter("image_reliability", QoSReliabilityPolicy.BEST_EFFORT)
+        self.declare_parameter("filter_class_name", "")  # Empty string = no filter
+        self.declare_parameter("min_score", 0.0)
 
         self.cv_bridge = CvBridge()
 
@@ -55,6 +57,9 @@ class TrackingNode(Node):
         self.image_reliability = (
             self.get_parameter("image_reliability").get_parameter_value().integer_value
         )
+
+        self.filter_class_name = self.get_parameter("filter_class_name").get_parameter_value().string_value
+        self.min_score = self.get_parameter("min_score").get_parameter_value().double_value
 
         self.tracker = self.create_tracker(tracker_name)
         self._pub = self.create_publisher(DetectionArray, "tracking", 10)
@@ -109,11 +114,20 @@ class TrackingNode(Node):
         cv_image = self.cv_bridge.imgmsg_to_cv2(img_msg, desired_encoding="bgr8")
         cv_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 
-        # parse detections
+        # parse detections with optional filtering
         detection_list = []
+        filtered_detections = []  # Keep track of which detections passed the filter
         detection: Detection
-        for detection in detections_msg.detections:
+        for idx, detection in enumerate(detections_msg.detections):
+            # Filter by class name if specified
+            if self.filter_class_name and detection.class_name != self.filter_class_name:
+                continue
 
+            # Filter by minimum score
+            if detection.score < self.min_score:
+                continue
+
+            filtered_detections.append(idx)  # Store original index
             detection_list.append(
                 [
                     detection.bbox.center.position.x - detection.bbox.size.x / 2,
@@ -136,7 +150,13 @@ class TrackingNode(Node):
                 for t in tracks:
 
                     tracked_box = Boxes(t[:-1], (img_msg.height, img_msg.width))
-                    tracked_detection: Detection = detections_msg.detections[int(t[-1])]
+                    original_idx = int(t[-1])
+
+                    # Only use detections that passed the filter
+                    if original_idx >= len(filtered_detections):
+                        continue
+
+                    tracked_detection: Detection = detections_msg.detections[filtered_detections[original_idx]]
 
                     # get boxes values
                     box = tracked_box.xywh[0]

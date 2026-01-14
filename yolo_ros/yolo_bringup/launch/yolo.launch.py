@@ -266,7 +266,12 @@ def generate_launch_description():
             executable="tracking_node",
             name="tracking_node",
             namespace=namespace,
-            parameters=[{"tracker": tracker, "image_reliability": image_reliability}],
+            parameters=[{
+                "tracker": tracker,
+                "image_reliability": image_reliability,
+                "filter_class_name": "person",
+                "min_score": 0.7
+            }],
             remappings=[("image_raw", input_image_topic)],
             condition=IfCondition(PythonExpression([str(use_tracking)])),
         )
@@ -301,8 +306,7 @@ def generate_launch_description():
             parameters=[{"image_reliability": image_reliability}],
             remappings=[
                 ("image_raw", input_image_topic),
-                ("detections", "/yolo/person_tracking"),
-                ("tracking", "/yolo/person_tracking"),
+                ("detections", debug_detections_topic),
             ],
             condition=IfCondition(PythonExpression([use_debug])),
         )
