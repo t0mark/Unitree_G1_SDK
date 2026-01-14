@@ -1,9 +1,74 @@
 # Name of the domain bridge, used for node naming and logging
-name: my_bridge
-from_domain: 0
-to_domain: 3
+# Domain 3 (Developer PC) -> Domain 0 (Robot)
+# Control commands from developer to robot
+name: bridge_3to0
+from_domain: 3
+to_domain: 0
 topics:
-  lowstate:
-    type: unitree_hg/msg/LowState
-  odommodestate:
-    type: unitree_go/msg/SportModeState
+  # Low-level control commands
+  lowcmd:
+    type: unitree_hg/msg/LowCmd
+  arm_sdk:
+    type: unitree_hg/msg/LowCmd
+  armsdk:
+    type: unitree_hg/msg/LowCmd
+
+  # Hand control commands
+  dex3/left/cmd:
+    type: unitree_hg/msg/HandCmd
+  dex3/right/cmd:
+    type: unitree_hg/msg/HandCmd
+
+  # AI/GPT commands
+  gpt_cmd:
+    type: std_msgs/msg/String
+
+  # Audio commands
+  audio_msg:
+    type: std_msgs/msg/String
+
+  # System commands
+  webrtcreq:
+    type: std_msgs/msg/String
+
+  # API service requests (Developer -> Robot)
+  api/action_store/request:
+    type: unitree_api/msg/Request
+  api/arm/request:
+    type: unitree_api/msg/Request
+  api/audiohub/request:
+    type: unitree_api/msg/Request
+  api/bashrunner/request:
+    type: unitree_api/msg/Request
+  api/basic_demarcate/request:
+    type: unitree_api/msg/Request
+  api/basic_demarcate_lease/request:
+    type: unitree_api/msg/Request
+  api/config/request:
+    type: unitree_api/msg/Request
+  api/dex3_msg_controller/request:
+    type: unitree_api/msg/Request
+  api/gesture/request:
+    type: unitree_api/msg/Request
+  api/gpt/request:
+    type: unitree_api/msg/Request
+  api/loco/request:
+    type: unitree_api/msg/Request
+  api/motion_switcher/request:
+    type: unitree_api/msg/Request
+  api/rm_con/request:
+    type: unitree_api/msg/Request
+  api/robot_state/request:
+    type: unitree_api/msg/Request
+  api/robot_type_service/request:
+    type: unitree_api/msg/Request
+  api/slam_operate/request:
+    type: unitree_api/msg/Request
+  api/sport/request:
+    type: unitree_api/msg/Request
+  api/videohub/request:
+    type: unitree_api/msg/Request
+  api/voice/request:
+    type: unitree_api/msg/Request
+  api/vui/request:
+    type: unitree_api/msg/Request

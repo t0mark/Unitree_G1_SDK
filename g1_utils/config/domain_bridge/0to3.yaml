@@ -1,9 +1,196 @@
 # Name of the domain bridge, used for node naming and logging
-name: my_bridge
+# Domain 0 (Robot) -> Domain 3 (Developer PC)
+# State information from robot to developer
+name: bridge_0to3
 from_domain: 0
 to_domain: 3
 topics:
+  # Robot hardware state
   lowstate:
     type: unitree_hg/msg/LowState
+  # sportmodestate:
+  #   type: unitree_hg/msg/SportModeState  # Message type does not exist (use unitree_go)
   odommodestate:
     type: unitree_go/msg/SportModeState
+  loco_sdk:
+    type: unitree_hg/msg/LowState
+  multiplestate:
+    type: std_msgs/msg/String
+  # SymState:
+  #   type: unitree_go/msg/SymState  # Message type does not exist
+
+  # Low frequency states
+  lf/lowstate:
+    type: unitree_go/msg/LowState
+  lf/sportmodestate:
+    type: unitree_go/msg/SportModeState
+  lf/odommodestate:
+    type: unitree_go/msg/SportModeState
+  lf/mainboardstate:
+    type: unitree_hg/msg/MainBoardState
+
+  # Battery states
+  lf/bmsstate:
+    type: unitree_hg/msg/BmsState
+  # lf/agvbmsstate:
+  #   type: unitree_hg/msg/AgvBmsState  # Message type does not exist
+  lf/battery_alarm:
+    type: std_msgs/msg/String
+
+  # Hand states
+  dex3/left/state:
+    type: unitree_hg/msg/HandState
+  dex3/right/state:
+    type: unitree_hg/msg/HandState
+  lf/dex3/left/state:
+    type: unitree_hg/msg/HandState
+  lf/dex3/right/state:
+    type: unitree_hg/msg/HandState
+
+  # IMU and odometry
+  dog_imu_raw:
+    type: sensor_msgs/msg/Imu
+  dog_odom:
+    type: nav_msgs/msg/Odometry
+  secondary_imu:
+    type: unitree_hg/msg/IMUState
+  lf/secondary_imu:
+    type: unitree_hg/msg/IMUState
+  # lowstate_doubleimu:
+  #   type: unitree_hg_doubleimu/msg/doubleIMUState  # Message type does not exist
+
+  # LiDAR and point clouds
+  utlidar/cloud_livox_mid360:
+    type: sensor_msgs/msg/PointCloud2
+  utlidar/imu_livox_mid360:
+    type: sensor_msgs/msg/Imu
+  utlidar/range_info:
+    type: geometry_msgs/msg/PointStamped
+  collision_clouds:
+    type: sensor_msgs/msg/PointCloud2
+  safe_clouds:
+    type: sensor_msgs/msg/PointCloud2
+  warning_clouds:
+    type: sensor_msgs/msg/PointCloud2
+  no_warning_clouds:
+    type: sensor_msgs/msg/PointCloud2
+  pre_safe_clouds:
+    type: sensor_msgs/msg/PointCloud2
+  pre_collision_clouds:
+    type: sensor_msgs/msg/PointCloud2
+  ele_clouds:
+    type: sensor_msgs/msg/PointCloud2
+  grid_clouds:
+    type: sensor_msgs/msg/PointCloud2
+
+  # SLAM and mapping
+  unitree/slam_mapping/odom:
+    type: nav_msgs/msg/Odometry
+  unitree/slam_mapping/points:
+    type: sensor_msgs/msg/PointCloud2
+  unitree/slam_relocation/odom:
+    type: nav_msgs/msg/Odometry
+  unitree/slam_relocation/points:
+    type: sensor_msgs/msg/PointCloud2
+  slam_info:
+    type: std_msgs/msg/String
+  slam_key_info:
+    type: std_msgs/msg/String
+  global_map:
+    type: nav_msgs/msg/OccupancyGrid
+  # gridmap:
+  #   type: grid_map_msgs/msg/GridMap
+  # planner_map:
+  #   type: grid_map_msgs/msg/GridMap
+  unitree_slam/waypoints:
+    type: std_msgs/msg/String
+
+  # Video and audio
+  frontvideostream:
+    type: unitree_go/msg/Go2FrontVideoData
+  audiosender:
+    type: unitree_go/msg/AudioData
+  audio_msg/filter:
+    type: std_msgs/msg/String
+
+  # AI and recognition
+  gpt_state:
+    type: std_msgs/msg/String
+  gptflowfeedback:
+    type: std_msgs/msg/String
+  gesture/result:
+    type: std_msgs/msg/String
+  event/action_store:
+    type: std_msgs/msg/String
+
+  # Arm action state
+  arm/action/state:
+    type: std_msgs/msg/String
+
+  # System and network
+  # config_change_status:
+  #   type: unitree_go/msg/ConfigChangeStatus  # Message type does not exist
+  servicestate:
+    type: std_msgs/msg/String
+  servicestateactivate:
+    type: std_msgs/msg/String
+  public_network_status:
+    type: std_msgs/msg/String
+  rtc/state:
+    type: std_msgs/msg/String
+  rtc_status:
+    type: std_msgs/msg/String
+  webrtcres:
+    type: std_msgs/msg/String
+  videohub/inner:
+    type: std_msgs/msg/String
+  selftest:
+    type: std_msgs/msg/String
+
+  # Controller input
+  wirelesscontroller:
+    type: unitree_go/msg/WirelessController
+
+  # System logs
+  log_system_inbound:
+    type: std_msgs/msg/String
+  log_system_outbound:
+    type: std_msgs/msg/String
+
+  # API service responses (Robot -> Developer)
+  api/action_store/response:
+    type: unitree_api/msg/Response
+  api/arm/response:
+    type: unitree_api/msg/Response
+  api/audiohub/response:
+    type: unitree_api/msg/Response
+  api/bashrunner/response:
+    type: unitree_api/msg/Response
+  api/basic_demarcate/response:
+    type: unitree_api/msg/Response
+  api/basic_demarcate_lease/response:
+    type: unitree_api/msg/Response
+  api/config/response:
+    type: unitree_api/msg/Response
+  api/dex3_msg_controller/response:
+    type: unitree_api/msg/Response
+  api/gpt/response:
+    type: unitree_api/msg/Response
+  api/loco/response:
+    type: unitree_api/msg/Response
+  api/motion_switcher/response:
+    type: unitree_api/msg/Response
+  api/robot_state/response:
+    type: unitree_api/msg/Response
+  api/robot_type_service/response:
+    type: unitree_api/msg/Response
+  api/slam_operate/response:
+    type: unitree_api/msg/Response
+  api/sport/response:
+    type: unitree_api/msg/Response
+  api/videohub/response:
+    type: unitree_api/msg/Response
+  api/voice/response:
+    type: unitree_api/msg/Response
+  api/vui/response:
+    type: unitree_api/msg/Response
