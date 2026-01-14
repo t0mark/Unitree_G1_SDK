@@ -38,7 +38,7 @@ def generate_launch_description():
     # Create synchronize node
     synchronize_node = Node(
         package='synchronize',
-        executable='synchronize_node.py',
+        executable='synchronize_node',
         name='mujoco_synchronizer',
         output='screen',
         parameters=[{
