@@ -237,7 +237,13 @@ class AudioPlayerNode(Node):
             stream_id = f'stream_{self.stream_counter}'
 
             # Play through Unitree audio client
-            code = self.audio_client.PlayStream(self.app_name, stream_id, pcm_data)
+            result = self.audio_client.PlayStream(self.app_name, stream_id, pcm_data)
+
+            # PlayStream returns (code, data) tuple
+            if isinstance(result, tuple):
+                code = result[0]
+            else:
+                code = result
 
             if code == 0:
                 self.get_logger().info(f'Successfully started playing: {filename}')
