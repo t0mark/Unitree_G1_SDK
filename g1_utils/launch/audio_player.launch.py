@@ -19,7 +19,7 @@ def generate_launch_description():
 
     default_volume_arg = DeclareLaunchArgument(
         'default_volume',
-        default_value='50',
+        default_value='100',
         description='Default audio volume (0-100)'
     )
 

@@ -26,6 +26,16 @@ def generate_launch_description():
             default_value='10.0',
             description='Minimum seconds between greetings (float)'
         ),
+        DeclareLaunchArgument(
+            'greeting_sound',
+            default_value='hello.mp3',
+            description='Greeting sound file name'
+        ),
+        DeclareLaunchArgument(
+            'audio_volume',
+            default_value='100',
+            description='Audio volume (0-100)'
+        ),
 
         Node(
             package='person_event',
@@ -37,6 +47,8 @@ def generate_launch_description():
                 'detection_duration': LaunchConfiguration('detection_duration'),
                 'greeting_count': LaunchConfiguration('greeting_count'),
                 'greeting_interval': LaunchConfiguration('greeting_interval'),
+                'greeting_sound': LaunchConfiguration('greeting_sound'),
+                'audio_volume': LaunchConfiguration('audio_volume'),
             }]
         ),
     ])
