@@ -4,22 +4,28 @@ import rclpy
 from rclpy.node import Node
 from yolo_msgs.msg import DetectionArray
 from std_msgs.msg import String
+from unitree_api.msg import Request
+from unitree_hg.msg import SportModeState
 import json
 import time
-import threading
 from pydub import AudioSegment
 from ament_index_python.packages import get_package_share_directory
-from unitree_sdk2py.core.channel import ChannelFactoryInitialize
-from unitree_sdk2py.g1.arm.g1_arm_action_client import G1ArmActionClient, action_map
-from unitree_sdk2py.g1.loco.g1_loco_client import LocoClient
-from unitree_sdk2py.g1.audio.g1_audio_client import AudioClient
+
+# API IDs for ROS2 communication
+ROBOT_API_ID_ARM_ACTION_EXECUTE_ACTION = 7106
+ROBOT_API_ID_AUDIO_START_PLAY = 1003
+ROBOT_API_ID_AUDIO_STOP_PLAY = 1004
+ROBOT_API_ID_AUDIO_SET_VOLUME = 1006
+
+# Action IDs
+ACTION_HIGH_WAVE = 26  # high wave action id
+
 
 class PersonEvent(Node):
     def __init__(self):
         super().__init__('person_event')
 
         # Parameters
-        self.declare_parameter('network_interface', 'eth0')
         self.declare_parameter('detection_duration', 2.0)  # 사람이 몇 초 이상 감지되어야 인사할지
         self.declare_parameter('greeting_count', -1)  # -1이면 무한, 양수면 그 횟수만큼만
         self.declare_parameter('greeting_interval', 5.0)  # 인사 후 다음 인사까지 최소 대기 시간
@@ -36,29 +42,11 @@ class PersonEvent(Node):
         package_share = get_package_share_directory('person_event')
         self.sounds_folder = os.path.join(package_share, 'sounds')
 
-        # Initialize SDK
-        network_interface = self.get_parameter('network_interface').value
-        ChannelFactoryInitialize(0, network_interface)
+        # ROS2 Publishers for robot API
+        self.arm_request_pub = self.create_publisher(Request, '/api/arm/request', 10)
+        self.voice_request_pub = self.create_publisher(Request, '/api/voice/request', 10)
 
-        # Arm action client
-        self.arm_client = G1ArmActionClient()
-        self.arm_client.SetTimeout(10.0)
-        self.arm_client.Init()
-
-        # Loco client for FSM state check
-        self.loco_client = LocoClient()
-        self.loco_client.SetTimeout(3.0)
-        self.loco_client.Init()
-
-        # Audio client
-        self.audio_client = AudioClient()
-        self.audio_client.SetTimeout(3.0)
-        self.audio_client.Init()
-        self._set_volume(self.audio_volume)
-        self.stream_counter = 0
-        self.app_name = 'person_event'
-
-        # Subscribers
+        # Detection subscriber
         self.sub = self.create_subscription(
             DetectionArray,
             '/yolo/tracking',
@@ -72,19 +60,51 @@ class PersonEvent(Node):
             10
         )
 
+        # FSM state subscriber
+        self.sport_mode_sub = self.create_subscription(
+            SportModeState,
+            '/sportmodestate',
+            self.sport_mode_cb,
+            10
+        )
+
         # State tracking
         self.arm_state = None
+        self.fsm_id = None
         self.person_detected_time = None
         self.greeting_executed_count = 0
         self.last_greeting_time = None
         self.greeting_in_progress = False
+        self.stream_counter = 0
+        self.app_name = 'person_event'
 
-        self.get_logger().info(f'Person event node initialized')
+        # Set initial volume
+        self._set_volume(self.audio_volume)
+
+        self.get_logger().info(f'Person event node initialized (ROS2 mode)')
         self.get_logger().info(f'Detection duration: {self.detection_duration}s')
         self.get_logger().info(f'Greeting count: {self.greeting_count} (-1 = unlimited)')
         self.get_logger().info(f'Greeting interval: {self.greeting_interval}s')
         self.get_logger().info(f'Greeting sound: {self.greeting_sound}')
         self.get_logger().info(f'Audio volume: {self.audio_volume}')
+
+    def _generate_request_id(self):
+        """Generate unique request ID."""
+        return int(time.time_ns())
+
+    def _create_request(self, api_id, parameter='', binary=None):
+        """Create a Request message."""
+        req = Request()
+        req.header.identity.id = self._generate_request_id()
+        req.header.identity.api_id = api_id
+        req.parameter = parameter
+        if binary is not None:
+            req.binary = list(binary)
+        return req
+
+    def sport_mode_cb(self, msg: SportModeState):
+        """Handle sport mode state updates."""
+        self.fsm_id = msg.fsm_id
 
     def arm_state_cb(self, msg: String):
         """Arm action state callback"""
@@ -96,12 +116,10 @@ class PersonEvent(Node):
     def _set_volume(self, volume: int):
         """Set the robot's audio volume (0-100)."""
         volume = max(0, min(100, volume))
-        code = self.audio_client.SetVolume(volume)
-        if code == 0:
-            self.get_logger().info(f'Volume set to {volume}')
-        else:
-            self.get_logger().warning(f'Failed to set volume, error code: {code}')
-        return code == 0
+        param = json.dumps({'volume': volume})
+        req = self._create_request(ROBOT_API_ID_AUDIO_SET_VOLUME, param)
+        self.voice_request_pub.publish(req)
+        self.get_logger().info(f'Volume set to {volume}')
 
     def _load_audio_as_pcm(self, filepath: str):
         """Load audio file and convert to PCM data."""
@@ -118,6 +136,8 @@ class PersonEvent(Node):
 
         elif ext == '.mp3':
             audio = AudioSegment.from_mp3(filepath)
+            # Convert to 16kHz mono for robot speaker
+            audio = audio.set_frame_rate(16000).set_channels(1)
             channels = audio.channels
             sample_width = audio.sample_width
             framerate = audio.frame_rate
@@ -162,19 +182,14 @@ class PersonEvent(Node):
             self.stream_counter += 1
             stream_id = f'stream_{self.stream_counter}'
 
-            result = self.audio_client.PlayStream(self.app_name, stream_id, pcm_data)
-
-            if isinstance(result, tuple):
-                code = result[0]
-            else:
-                code = result
-
-            if code == 0:
-                self.get_logger().info(f'Successfully started playing: {filename}')
-                return True
-            else:
-                self.get_logger().error(f'Failed to play audio, error code: {code}')
-                return False
+            param = json.dumps({
+                'app_name': self.app_name,
+                'stream_id': stream_id
+            })
+            req = self._create_request(ROBOT_API_ID_AUDIO_START_PLAY, param, pcm_data)
+            self.voice_request_pub.publish(req)
+            self.get_logger().info(f'Started playing: {filename}')
+            return True
 
         except Exception as e:
             self.get_logger().error(f'Error playing audio file: {e}')
@@ -182,16 +197,17 @@ class PersonEvent(Node):
 
     def check_robot_fsm_state(self):
         """Check robot FSM state (should be 801)"""
-        try:
-            code, data = self.loco_client._Call(7001, '{}')
-            if code == 0:
-                result = json.loads(data)
-                fsm_state = result.get('data', -1)
-                return fsm_state == 801
+        if self.fsm_id is None:
+            self.get_logger().warn('FSM state not yet received')
             return False
-        except Exception as e:
-            self.get_logger().error(f'Failed to check FSM state: {e}')
-            return False
+        return self.fsm_id == 801
+
+    def execute_arm_action(self, action_id):
+        """Execute arm action via ROS2."""
+        param = json.dumps({'data': action_id})
+        req = self._create_request(ROBOT_API_ID_ARM_ACTION_EXECUTE_ACTION, param)
+        self.arm_request_pub.publish(req)
+        self.get_logger().info(f'Arm action {action_id} sent')
 
     def execute_greeting(self):
         """Execute hand wave greeting"""
@@ -219,7 +235,7 @@ class PersonEvent(Node):
 
             # Play greeting sound and arm action together
             self.play_greeting_sound()
-            self.arm_client.ExecuteAction(action_map.get("high wave"))
+            self.execute_arm_action(ACTION_HIGH_WAVE)
 
             self.greeting_executed_count += 1
             self.last_greeting_time = time.time()

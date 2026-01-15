@@ -21,16 +21,16 @@ def generate_launch_description():
         arguments=[config_0to3_path]
     )
 
-    # Domain bridge node: 3 to 0 (Developer PC -> Robot)
-    bridge_3to0_node = Node(
-        package='g1_utils',
-        executable='g1_utils',
-        name='bridge_3to0',
-        output='both',
-        arguments=[config_3to0_path]
-    )
+    # # Domain bridge node: 3 to 0 (Developer PC -> Robot)
+    # bridge_3to0_node = Node(
+    #     package='g1_utils',
+    #     executable='g1_utils',
+    #     name='bridge_3to0',
+    #     output='both',
+    #     arguments=[config_3to0_path]
+    # )
 
     return LaunchDescription([
         bridge_0to3_node,
-        bridge_3to0_node,
+        # bridge_3to0_node,
     ])

@@ -82,14 +82,18 @@ class MujocoSynchronizer(Node):
 
         self.get_logger().info(f'Mujoco model loaded: {self.mj_model.nv} DOF')
 
-        # Thread synchronization
-        self.locker = threading.Lock()
+        # Thread synchronization - use separate locks to reduce contention
+        self.state_lock = threading.Lock()
+        self.odom_lock = threading.Lock()
         self.running = True
 
-        # Statistics
-        self.msg_count = 0
-        self.last_msg_time = self.get_clock().now()
-        self.last_100_msg_time = self.get_clock().now()
+        # Pending state data (written by callbacks, read by viewer)
+        self.pending_motor_states = None
+        self.pending_imu_quaternion = None
+        self.pending_odom_position = None
+        self.pending_odom_velocity = None
+        self.state_updated = False
+        self.odom_updated = False
 
         # Subscribe to /lowstate
         self.state_sub = self.create_subscription(
@@ -131,103 +135,108 @@ class MujocoSynchronizer(Node):
     def odom_callback(self, msg: SportModeState):
         """
         Callback for /odommodestate topic
-        Updates Mujoco simulation base position from odometry
+        Stores odometry data for later processing in viewer loop
         """
-        with self.locker:
-            if not self.mj_model or not self.mj_data:
-                return
-
-            # Update floating base position (first 3 elements of qpos)
-            # SportModeState contains position information
-            self.mj_data.qpos[0] = msg.position[0]  # x position
-            self.mj_data.qpos[1] = msg.position[1]  # y position
-            self.mj_data.qpos[2] = msg.position[2]  # z position
-
-            # Update floating base linear velocity (first 3 elements of qvel)
-            self.mj_data.qvel[0] = msg.velocity[0]  # x velocity
-            self.mj_data.qvel[1] = msg.velocity[1]  # y velocity
-            self.mj_data.qvel[2] = msg.velocity[2]  # z velocity
-
-            # Forward kinematics to update visualization
-            mujoco.mj_forward(self.mj_model, self.mj_data)
+        # Just store the data - no heavy computation here
+        with self.odom_lock:
+            self.pending_odom_position = (msg.position[0], msg.position[1], msg.position[2])
+            self.pending_odom_velocity = (msg.velocity[0], msg.velocity[1], msg.velocity[2])
+            self.odom_updated = True
 
     def state_callback(self, msg: LowState):
         """
         Callback for /lowstate topic
-        Updates Mujoco simulation state from real robot
+        Stores state data for later processing in viewer loop
         """
-        with self.locker:
-            if not self.mj_model or not self.mj_data:
-                return
+        # Extract data from message (lightweight operation)
+        motor_data = [(ms.q, ms.dq) for ms in msg.motor_state]
+        imu_quat = None
+        if len(msg.imu_state.quaternion) >= 4:
+            imu_quat = tuple(msg.imu_state.quaternion[:4])
 
-            # Update joint positions and velocities
-            # G1 robot has up to 35 motors (unitree_hg IDL)
-            # but typically uses 23 or 29 DOF depending on configuration
-            num_motors = min(len(msg.motor_state), self.mj_model.nu)
-
-            for i in range(num_motors):
-                motor_state = msg.motor_state[i]
-
-                # Update joint position (qpos)
-                # First 7 elements of qpos: 3 position + 4 quaternion (floating base)
-                # Remaining elements: joint positions
-                qpos_idx = i + 7  # Skip floating base
-                if qpos_idx < self.mj_model.nq:
-                    self.mj_data.qpos[qpos_idx] = motor_state.q
-
-                # Update joint velocity (qvel)
-                # First 6 elements of qvel: 3 linear + 3 angular velocity (floating base)
-                # Remaining elements: joint velocities
-                qvel_idx = i + 6  # Skip floating base velocities
-                if qvel_idx < self.mj_model.nv:
-                    self.mj_data.qvel[qvel_idx] = motor_state.dq
-
-            # Update IMU orientation (quaternion)
-            # Mujoco uses [w, x, y, z] format
-            if len(msg.imu_state.quaternion) >= 4:
-                # IMU sends [w, x, y, z] format (same as Mujoco)
-                self.mj_data.qpos[3] = msg.imu_state.quaternion[0]  # w
-                self.mj_data.qpos[4] = msg.imu_state.quaternion[1]  # x
-                self.mj_data.qpos[5] = msg.imu_state.quaternion[2]  # y
-                self.mj_data.qpos[6] = msg.imu_state.quaternion[3]  # z
-
-            # Forward kinematics to update visualization
-            mujoco.mj_forward(self.mj_model, self.mj_data)
-
-        # Update statistics
-        self.msg_count += 1
-        current_time = self.get_clock().now()
-
-        if self.msg_count % 100 == 0:
-            duration = (current_time - self.last_100_msg_time).nanoseconds / 1e9
-            rate = 100.0 / duration if duration > 0 else 0
-            self.get_logger().info(
-                f'Received {self.msg_count} states, rate: {rate:.1f} Hz'
-            )
-            self.last_100_msg_time = current_time
+        # Store pending data with minimal lock time
+        with self.state_lock:
+            self.pending_motor_states = motor_data
+            self.pending_imu_quaternion = imu_quat
+            self.state_updated = True
 
     def viewer_loop(self):
         """
         Viewer thread loop
-        Renders Mujoco simulation at specified FPS
+        Applies pending state updates and renders at specified FPS
+        mj_forward is called only once per frame here
         """
         self.get_logger().info(f'Starting viewer loop at {self.viewer_fps:.1f} FPS')
 
         frame_duration = 1.0 / self.viewer_fps
+        need_forward = False
 
         while self.running and self.viewer.is_running():
             start_time = time.perf_counter()
 
-            # Sync viewer with simulation data
-            with self.locker:
-                # Update camera lookat to follow robot
-                if self.camera_follow:
-                    robot_pos = self.mj_data.qpos[0:3]  # x, y, z
-                    self.viewer.cam.lookat[0] = robot_pos[0] + self.camera_lookat_offset[0]
-                    self.viewer.cam.lookat[1] = robot_pos[1] + self.camera_lookat_offset[1]
-                    self.viewer.cam.lookat[2] = robot_pos[2] + self.camera_lookat_offset[2]
+            # Fetch pending odom data
+            odom_pos = None
+            odom_vel = None
+            with self.odom_lock:
+                if self.odom_updated:
+                    odom_pos = self.pending_odom_position
+                    odom_vel = self.pending_odom_velocity
+                    self.odom_updated = False
+                    need_forward = True
 
-                self.viewer.sync()
+            # Fetch pending state data
+            motor_states = None
+            imu_quat = None
+            with self.state_lock:
+                if self.state_updated:
+                    motor_states = self.pending_motor_states
+                    imu_quat = self.pending_imu_quaternion
+                    self.state_updated = False
+                    need_forward = True
+
+            # Apply odom data to mj_data (no lock needed - only viewer thread writes)
+            if odom_pos is not None:
+                self.mj_data.qpos[0] = odom_pos[0]
+                self.mj_data.qpos[1] = odom_pos[1]
+                self.mj_data.qpos[2] = odom_pos[2]
+            if odom_vel is not None:
+                self.mj_data.qvel[0] = odom_vel[0]
+                self.mj_data.qvel[1] = odom_vel[1]
+                self.mj_data.qvel[2] = odom_vel[2]
+
+            # Apply motor state data
+            if motor_states is not None:
+                num_motors = min(len(motor_states), self.mj_model.nu)
+                for i in range(num_motors):
+                    q, dq = motor_states[i]
+                    qpos_idx = i + 7
+                    if qpos_idx < self.mj_model.nq:
+                        self.mj_data.qpos[qpos_idx] = q
+                    qvel_idx = i + 6
+                    if qvel_idx < self.mj_model.nv:
+                        self.mj_data.qvel[qvel_idx] = dq
+
+            # Apply IMU quaternion
+            if imu_quat is not None:
+                self.mj_data.qpos[3] = imu_quat[0]  # w
+                self.mj_data.qpos[4] = imu_quat[1]  # x
+                self.mj_data.qpos[5] = imu_quat[2]  # y
+                self.mj_data.qpos[6] = imu_quat[3]  # z
+
+            # Forward kinematics - only once per frame when data changed
+            if need_forward:
+                mujoco.mj_forward(self.mj_model, self.mj_data)
+                need_forward = False
+
+            # Update camera lookat to follow robot
+            if self.camera_follow:
+                robot_pos = self.mj_data.qpos[0:3]
+                self.viewer.cam.lookat[0] = robot_pos[0] + self.camera_lookat_offset[0]
+                self.viewer.cam.lookat[1] = robot_pos[1] + self.camera_lookat_offset[1]
+                self.viewer.cam.lookat[2] = robot_pos[2] + self.camera_lookat_offset[2]
+
+            # Sync viewer
+            self.viewer.sync()
 
             # Rate control
             elapsed = time.perf_counter() - start_time
