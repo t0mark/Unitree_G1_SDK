@@ -14,17 +14,17 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'detection_duration',
             default_value='3.0',
-            description='Seconds person must be detected before greeting (float)'
+            description='트리거: 사람 인식 지속 시간'
         ),
         DeclareLaunchArgument(
             'greeting_count',
             default_value='-1',
-            description='Number of greetings to perform (-1 for unlimited)'
+            description='반복 횟수 설정 (-1 : inf)'
         ),
         DeclareLaunchArgument(
             'greeting_interval',
             default_value='10.0',
-            description='Minimum seconds between greetings (float)'
+            description='인사 사이의 간격 (자체 sleep 4~5초 있음: greating_interval + 4~5)'
         ),
         DeclareLaunchArgument(
             'greeting_sound',
