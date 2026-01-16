@@ -23,8 +23,8 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'greeting_interval',
-            default_value='10.0',
-            description='인사 사이의 간격 (자체 sleep 4~5초 있음: greating_interval + 4~5)'
+            default_value='15.0',
+            description='인사 사이의 간격'
         ),
         DeclareLaunchArgument(
             'greeting_sound',

@@ -209,25 +209,25 @@ class PersonEvent(Node):
         self.arm_request_pub.publish(req)
         self.get_logger().info(f'Arm action {action_id} sent')
 
-    def execute_greeting(self):
-        """Execute hand wave greeting"""
+    def execute_greeting(self) -> bool:
+        """Execute hand wave greeting. Returns True if greeting was executed."""
         if self.greeting_in_progress:
-            return
+            return False
 
         # Check if greeting count limit reached
         if self.greeting_count >= 0 and self.greeting_executed_count >= self.greeting_count:
             self.get_logger().info(f'Greeting count limit reached ({self.greeting_count})')
-            return
+            return False
 
         # Check arm state (should be 0) - only if state is available
         if self.arm_state is not None and self.arm_state != 0:
             self.get_logger().warn(f'Arm state is {self.arm_state}, expected 0. Skipping greeting.')
-            return
+            return False
 
         # Check robot FSM state (should be 801)
         if not self.check_robot_fsm_state():
             self.get_logger().warn('Robot FSM state is not 801. Skipping greeting.')
-            return
+            return False
 
         self.greeting_in_progress = True
         try:
@@ -239,9 +239,11 @@ class PersonEvent(Node):
 
             self.greeting_executed_count += 1
             self.last_greeting_time = time.time()
-            self.get_logger().info(f'Greeting executed ({self.greeting_executed_count}/{self.greeting_count if self.greeting_count >= 0 else "unlimited"})')
+            self.get_logger().info(f'Greeting executed ({self.greeting_executed_count}/{self.greeting_count if self.greeting_count >= 0 else "unlimited"}) at {self.last_greeting_time:.2f}')
+            return True
         except Exception as e:
             self.get_logger().error(f'Failed to execute greeting: {e}')
+            return False
         finally:
             self.greeting_in_progress = False
 
@@ -255,13 +257,18 @@ class PersonEvent(Node):
                 self.person_detected_time = current_time
                 self.get_logger().info('Person detected, tracking duration...')
 
+            # Check if enough time passed since last greeting first
+            time_since_last = current_time - self.last_greeting_time if self.last_greeting_time else None
+            if self.last_greeting_time is not None and time_since_last < self.greeting_interval:
+                # Still in cooldown, reset detection time to wait for new detection after interval
+                self.person_detected_time = current_time
+                return
+
             # Check if detection duration threshold met
             detection_duration = current_time - self.person_detected_time
             if detection_duration >= self.detection_duration:
-                # Check if enough time passed since last greeting
-                if self.last_greeting_time is None or (current_time - self.last_greeting_time) >= self.greeting_interval:
-                    self.execute_greeting()
-                    self.person_detected_time = None  # Reset detection time after greeting
+                if self.execute_greeting():
+                    self.person_detected_time = None  # Reset detection time after successful greeting
         else:
             # No person detected, reset timer
             if self.person_detected_time is not None:
