@@ -124,14 +124,8 @@ install(TARGETS ${PROJECT_NAME}_lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY config launch sounds models
+install(DIRECTORY config launch models
   DESTINATION share/${PROJECT_NAME}
-)
-
-# Install Python scripts
-install(PROGRAMS
-  scripts/audio_player_node.py
-  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_export_targets(export_${PROJECT_NAME})

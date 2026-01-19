@@ -21,11 +21,8 @@
   <depend>zstd_vendor</depend>
 
   <depend>rclpy</depend>
-  <depend>std_msgs</depend>
-  <depend>std_srvs</depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
-  <exec_depend>python3-pydub</exec_depend>
 
   <test_depend>ament_cmake_gmock</test_depend>
   <test_depend>ament_lint_auto</test_depend>
