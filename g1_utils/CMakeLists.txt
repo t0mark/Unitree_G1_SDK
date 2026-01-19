@@ -124,7 +124,7 @@ install(TARGETS ${PROJECT_NAME}_lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY config launch sounds
+install(DIRECTORY config launch sounds models
   DESTINATION share/${PROJECT_NAME}
 )
 

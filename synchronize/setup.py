@@ -12,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.py')),
+        ('share/' + package_name + '/rviz', glob('rviz/*.rviz')),
         ('share/' + package_name + '/models/g1', glob('models/g1/*.xml')),
         ('share/' + package_name + '/models/g1/meshes', glob('models/g1/meshes/*.STL')),
     ],
@@ -25,6 +26,7 @@ setup(
     entry_points={
         'console_scripts': [
             'synchronize_node = synchronize.synchronize_node:main',
+            'synchronize_rviz_node = synchronize.synchronize_rviz_node:main',
         ],
     },
 )
